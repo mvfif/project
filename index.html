@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<title>Корпус текстов</title>
+
+<style>
+body { font-family: Arial; margin: 20px; }
+input, select { padding: 6px; margin: 5px; }
+.filters { display: flex; flex-wrap: wrap; }
+.result { border-bottom: 1px solid #ccc; padding: 10px 0; }
+.kwic { font-family: monospace; margin-top: 5px; }
+.left { color: #777; }
+.center { background: yellow; font-weight: bold; }
+.right { color: #777; }
+</style>
+
+</head>
+<body>
+
+<h1>Корпус текстов</h1>
+
+<!-- 🔄 переключатель -->
+<label><input type="radio" name="mode" value="lemma" checked> По лемме</label>
+<label><input type="radio" name="mode" value="word"> По словоформе</label>
+
+<br>
+
+<!-- 🔍 поиск -->
+<input type="text" id="searchInput" placeholder="Введите слово">
+
+<!-- 🎛️ фильтры -->
+<div class="filters">
+<select id="pos"><option value="">Часть речи</option></select>
+<select id="aspect"><option value="">Вид</option></select>
+<select id="tense"><option value="">Время</option></select>
+<select id="number"><option value="">Число</option></select>
+<select id="gender"><option value="">Род</option></select>
+<select id="person"><option value="">Лицо</option></select>
+<select id="mood"><option value="">Наклонение</option></select>
+<select id="voice"><option value="">Залог</option></select>
+<select id="case"><option value="">Падеж</option></select>
+<select id="animacy"><option value="">Одушевлённость</option></select>
+<select id="song"><option value="">Песня</option></select>
+<select id="album"><option value="">Альбом</option></select>
+<select id="author"><option value="">Автор</option></select>
+</div>
+
+<button onclick="search()">Найти</button>
+
+<div id="results"></div>
+
+<script>
+let data = [];
+
+fetch('data.json')
+  .then(r => r.json())
+  .then(json => {
+    console.log("DATA TYPE:", typeof json, json);
+    data = json;
+
+    // 🔴 защита от ошибки data.map
+    if (!Array.isArray(data)) {
+      console.error("JSON НЕ массив!");
+      return;
+    }
+
+    fillFilters();
+  });
+
+function fillFilters() {
+  let fields = ["pos","aspect","tense","number","gender","person","mood","voice","case","animacy","song","album","author"];
+
+  fields.forEach(f => {
+    let values = [...new Set(data.map(d => d[f]).filter(v => v && v !== ""))];
+
+    let select = document.getElementById(f);
+
+    values.sort().forEach(v => {
+      let opt = document.createElement("option");
+      opt.value = v;
+      opt.textContent = v;
+      select.appendChild(opt);
+    });
+  });
+}
+
+function search() {
+  let query = document.getElementById("searchInput").value.toLowerCase();
+  let mode = document.querySelector('input[name="mode"]:checked').value;
+
+  let filters = {};
+  ["pos","aspect","tense","number","gender","person","mood","voice","case","animacy","song","album","author"]
+    .forEach(f => filters[f] = document.getElementById(f).value);
+
+  let results = data.filter(d => {
+
+    let match = true;
+
+    if (query) {
+      if (mode === "lemma") {
+        match = (d.lemma || "").toLowerCase() === query;
+      } else {
+        match = (d.word || "").toLowerCase() === query;
+      }
+    }
+
+    return match &&
+      (!filters.pos || d.pos === filters.pos) &&
+      (!filters.aspect || d.aspect === filters.aspect) &&
+      (!filters.tense || d.tense === filters.tense) &&
+      (!filters.number || d.number === filters.number) &&
+      (!filters.gender || d.gender === filters.gender) &&
+      (!filters.person || d.person === filters.person) &&
+      (!filters.mood || d.mood === filters.mood) &&
+      (!filters.voice || d.voice === filters.voice) &&
+      (!filters.case || d.case === filters.case) &&
+      (!filters.animacy || d.animacy === filters.animacy) &&
+      (!filters.song || d.song === filters.song) &&
+      (!filters.album || d.album === filters.album) &&
+      (!filters.author || d.author === filters.author);
+  });
+
+  showResults(results);
+}
+
+function makeKWIC(context, word) {
+  if (!context || !word) return context || "";
+
+  let i = context.toLowerCase().indexOf(word.toLowerCase());
+  if (i === -1) return context;
+
+  let left = context.slice(0, i);
+  let center = context.slice(i, i + word.length);
+  let right = context.slice(i + word.length);
+
+  return `<span class="left">${left}</span><span class="center">${center}</span><span class="right">${right}</span>`;
+}
+
+function showResults(results) {
+  let div = document.getElementById("results");
+  div.innerHTML = "";
+
+  if (results.length === 0) {
+    div.innerHTML = "Ничего не найдено";
+    return;
+  }
+
+  results.forEach(r => {
+    let el = document.createElement("div");
+    el.className = "result";
+
+    let kwic = makeKWIC(r.context, r.word);
+
+    el.innerHTML = `
+      <b>${r.word}</b> → ${r.lemma}<br>
+      ${r.pos || ""} ${r.aspect || ""} ${r.tense || ""} ${r.number || ""} ${r.gender || ""} ${r.person || ""} ${r.mood || ""} ${r.voice || ""} ${r.case || ""} ${r.animacy || ""}<br>
+      ${r.song || ""} — ${r.album || ""}<br>
+      Автор: ${r.author || ""}<br>
+      <div class="kwic">${kwic}</div>
+    `;
+
+    div.appendChild(el);
+  });
+}
+</script>
+
+</body>
+</html>
