@@ -53,7 +53,7 @@ input, select { padding: 6px; margin: 5px; }
 <script>
 let data = [];
 
-fetch('data.json')
+fetch('static/data.json')
   .then(r => r.json())
   .then(json => {
     console.log("DATA TYPE:", typeof json, json);
